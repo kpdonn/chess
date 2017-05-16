@@ -31,6 +31,30 @@ class BoardState(
 ) {
 
     init {
+        verifyBoard()
+        verifyPieces()
+        verifyEnPassant()
+        verifyCastling()
+    }
+
+
+
+    private fun verifyBoard() {
+        for (row in 0..7){
+            for (col in 0..7) {
+                val piece = board[row][col]
+                if (piece != null) {
+                    if(piece.side == WHITE) {
+                        assert(whitePieces.contains(piece))
+                    } else {
+                        assert(blackPieces.contains(piece))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun verifyPieces () {
         for (piece in whitePieces) {
             assert(piece.side == WHITE)
             assert(board[piece.row][piece.col] === piece)
@@ -40,7 +64,9 @@ class BoardState(
             assert(piece.side == BLACK)
             assert(board[piece.row][piece.col] === piece)
         }
+    }
 
+    private fun verifyEnPassant() {
         if (enPassantColumn != null) {
             val justMoved: Side
             val row: Int
@@ -61,8 +87,29 @@ class BoardState(
                 assert(board[row][enPassantColumn + 1] == Piece(row, enPassantColumn + 1, PAWN, toMove) ||
                         board[row][enPassantColumn - 1] == Piece(row, enPassantColumn - 1, PAWN, toMove))
             }
+        }
+    }
 
+    private fun verifyCastling() {
 
+        if (whiteCastleKing) {
+            assert(board[0][4] == Piece(0, 4, KING, WHITE))
+            assert(board[0][7] == Piece(0, 7, ROOK, WHITE))
+        }
+
+        if (whiteCastleQueen) {
+            assert(board[0][4] == Piece(0, 4, KING, WHITE))
+            assert(board[0][0] == Piece(0, 0, ROOK, WHITE))
+        }
+
+        if (blackCastleKing) {
+            assert(board[7][4] == Piece(7, 4, KING, BLACK))
+            assert(board[7][7] == Piece(7, 7, ROOK, BLACK))
+        }
+
+        if (blackCastleQueen) {
+            assert(board[7][4] == Piece(7, 4, KING, BLACK))
+            assert(board[7][0] == Piece(7, 0, ROOK, BLACK))
         }
     }
 }
