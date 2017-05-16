@@ -1,24 +1,14 @@
 package kpd.chess
 
 import kpd.chess.PieceType.*
-import kpd.chess.Side.BLACK
-import kpd.chess.Side.WHITE
+
 
 class BoardState(
 
-        val board: Array<Array<Piece?>> = arrayOf(
-                arrayOfNulls(8),
-                arrayOfNulls(8),
-                arrayOfNulls(8),
-                arrayOfNulls(8),
-                arrayOfNulls(8),
-                arrayOfNulls(8),
-                arrayOfNulls(8),
-                arrayOfNulls(8)
-        ),
+        val board: Array<Array<Piece?>>,
 
-        val whitePieces: Set<Piece> = mutableSetOf<Piece>(),
-        val blackPieces: Set<Piece> = mutableSetOf<Piece>(),
+        val whitePieces: Set<Piece>,
+        val blackPieces: Set<Piece>,
 
 
         val whiteCastleKing: Boolean,
@@ -27,7 +17,7 @@ class BoardState(
         val blackCastleQueen: Boolean,
 
         val enPassantColumn: Int?,
-        val toMove: Side
+        val whiteToMove: Boolean
 ) {
 
     init {
@@ -39,12 +29,55 @@ class BoardState(
 
 
 
+    fun move(bRow: Int, bCol: Int, aRow:Int, aCol: Int): BoardState {
+
+        val newBoard = board.copy()
+
+        val newWhitePieces = HashSet(whitePieces)
+        val newBlackPieces = HashSet(blackPieces)
+
+
+        val pieceToMove = newBoard[bRow][bCol]
+
+
+
+        val capturedPiece = newBoard[aRow][aCol]
+
+        if(capturedPiece != null) {
+            assert(capturedPiece.white != pieceToMove!!.white)
+            if(capturedPiece.white) {
+                newWhitePieces.remove(capturedPiece)
+            } else {
+                newBlackPieces.remove(capturedPiece)
+            }
+        }
+
+        val pieceAfterMove = pieceToMove!!.copy(row = aRow, col = aCol)
+        newBoard[bRow][bCol] = null
+        newBoard[aRow][aCol] = pieceAfterMove
+
+
+        if(pieceToMove.white) {
+            newWhitePieces.remove(pieceToMove)
+            newWhitePieces.add(pieceAfterMove)
+        } else {
+            newBlackPieces.remove(pieceToMove)
+            newBlackPieces.add(pieceAfterMove)
+        }
+
+        return BoardState(newBoard, newWhitePieces, newBlackPieces, whiteCastleKing, whiteCastleQueen, blackCastleKing, blackCastleQueen, enPassantColumn, !whiteToMove)
+
+    }
+
+
+
+
     private fun verifyBoard() {
         for (row in 0..7){
             for (col in 0..7) {
                 val piece = board[row][col]
                 if (piece != null) {
-                    if(piece.side == WHITE) {
+                    if(piece.white) {
                         assert(whitePieces.contains(piece))
                     } else {
                         assert(blackPieces.contains(piece))
@@ -56,36 +89,33 @@ class BoardState(
 
     private fun verifyPieces () {
         for (piece in whitePieces) {
-            assert(piece.side == WHITE)
+            assert(piece.white)
             assert(board[piece.row][piece.col] === piece)
         }
 
         for (piece in blackPieces) {
-            assert(piece.side == BLACK)
+            assert(piece.white)
             assert(board[piece.row][piece.col] === piece)
         }
     }
 
     private fun verifyEnPassant() {
         if (enPassantColumn != null) {
-            val justMoved: Side
             val row: Int
-            if (toMove == WHITE) {
-                justMoved = BLACK
+            if (whiteToMove) {
                 row = 4
             } else {
-                justMoved = WHITE
                 row = 3
             }
 
-            assert(board[row][enPassantColumn] == Piece(row, enPassantColumn, PAWN, justMoved))
+            assert(board[row][enPassantColumn] == Piece(row, enPassantColumn, PAWN, !whiteToMove))
             if (enPassantColumn == 0) {
-                assert(board[row][enPassantColumn + 1] == Piece(row, enPassantColumn + 1, PAWN, toMove))
+                assert(board[row][enPassantColumn + 1] == Piece(row, enPassantColumn + 1, PAWN, !whiteToMove))
             } else if (enPassantColumn == 7) {
-                assert(board[row][enPassantColumn - 1] == Piece(row, enPassantColumn - 1, PAWN, toMove))
+                assert(board[row][enPassantColumn - 1] == Piece(row, enPassantColumn - 1, PAWN, !whiteToMove))
             } else {
-                assert(board[row][enPassantColumn + 1] == Piece(row, enPassantColumn + 1, PAWN, toMove) ||
-                        board[row][enPassantColumn - 1] == Piece(row, enPassantColumn - 1, PAWN, toMove))
+                assert(board[row][enPassantColumn + 1] == Piece(row, enPassantColumn + 1, PAWN, !whiteToMove) ||
+                        board[row][enPassantColumn - 1] == Piece(row, enPassantColumn - 1, PAWN, !whiteToMove))
             }
         }
     }
@@ -93,23 +123,23 @@ class BoardState(
     private fun verifyCastling() {
 
         if (whiteCastleKing) {
-            assert(board[0][4] == Piece(0, 4, KING, WHITE))
-            assert(board[0][7] == Piece(0, 7, ROOK, WHITE))
+            assert(board[0][4] == Piece(0, 4, KING, true))
+            assert(board[0][7] == Piece(0, 7, ROOK, true))
         }
 
         if (whiteCastleQueen) {
-            assert(board[0][4] == Piece(0, 4, KING, WHITE))
-            assert(board[0][0] == Piece(0, 0, ROOK, WHITE))
+            assert(board[0][4] == Piece(0, 4, KING, true))
+            assert(board[0][0] == Piece(0, 0, ROOK, true))
         }
 
         if (blackCastleKing) {
-            assert(board[7][4] == Piece(7, 4, KING, BLACK))
-            assert(board[7][7] == Piece(7, 7, ROOK, BLACK))
+            assert(board[7][4] == Piece(7, 4, KING, false))
+            assert(board[7][7] == Piece(7, 7, ROOK, false))
         }
 
         if (blackCastleQueen) {
-            assert(board[7][4] == Piece(7, 4, KING, BLACK))
-            assert(board[7][0] == Piece(7, 0, ROOK, BLACK))
+            assert(board[7][4] == Piece(7, 4, KING, false))
+            assert(board[7][0] == Piece(7, 0, ROOK, false))
         }
     }
 }
@@ -130,8 +160,8 @@ fun init(): BoardState {
     val blackPieces: MutableSet<Piece> = mutableSetOf<Piece>()
 
     for (col in 0..7) {
-        val whitePawn = Piece(row = 1, col = col, pieceType = PAWN, side = WHITE)
-        val blackPawn = Piece(row = 6, col = col, pieceType = PAWN, side = BLACK)
+        val whitePawn = Piece(row = 1, col = col, pieceType = PAWN, white = true)
+        val blackPawn = Piece(row = 6, col = col, pieceType = PAWN, white = false)
         whitePawn.add(board, whitePieces, blackPieces)
         blackPawn.add(board, whitePieces, blackPieces)
 
@@ -146,8 +176,8 @@ fun init(): BoardState {
             else -> throw Exception("Impossible column")
         }
 
-        val whitePiece = Piece(row = 0, col = col, pieceType = pieceType, side = WHITE)
-        val blackPiece = Piece(row = 7, col = col, pieceType = pieceType, side = BLACK)
+        val whitePiece = Piece(row = 0, col = col, pieceType = pieceType, white = true)
+        val blackPiece = Piece(row = 7, col = col, pieceType = pieceType, white = false)
 
         whitePiece.add(board, whitePieces, blackPieces)
         blackPiece.add(board, whitePieces, blackPieces)
@@ -162,42 +192,11 @@ fun init(): BoardState {
             blackCastleKing = true,
             blackCastleQueen = true,
             enPassantColumn = null,
-            toMove = WHITE)
+            whiteToMove = true)
 
 }
 
 
-data class Piece(
-        val row: Int,
-        val col: Int,
-        val pieceType: PieceType,
-        val side: Side
-) {
 
-    fun add(board: Array<Array<Piece?>>, whitePieces: MutableSet<Piece>, blackPieces: MutableSet<Piece>) {
-        assert(board[row][col] == null)
-        board[row][col] = this
 
-        if (this.side == WHITE) {
-            assert(!whitePieces.contains(this))
-            whitePieces.add(this)
-        } else {
-            assert(!blackPieces.contains(this))
-            blackPieces.add(this)
-        }
-    }
-}
-
-enum class PieceType {
-    KING,
-    QUEEN,
-    ROOK,
-    BISHOP,
-    KNIGHT,
-    PAWN
-}
-
-enum class Side {
-    WHITE,
-    BLACK
-}
+fun Array<Array<Piece?>>.copy() = map { it.clone() }.toTypedArray()
