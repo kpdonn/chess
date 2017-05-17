@@ -28,8 +28,209 @@ class BoardState(
     }
 
 
+    fun getPossibleMoves(): List<Move> {
+        val pieces: Set<Piece>
+        if (whiteToMove) {
+            pieces = whitePieces
+        } else {
+            pieces = blackPieces
+        }
 
-    fun move(bRow: Int, bCol: Int, aRow:Int, aCol: Int): BoardState {
+        val moveList = ArrayList<Move>()
+
+        for (piece in pieces) {
+            when(piece.pieceType) {
+                PAWN -> moveList.addAll(getPawnMoves(piece.row, piece.col, piece.white))
+                ROOK -> moveList.addAll(getRookMoves(piece.row, piece.col, piece.white))
+                KNIGHT -> moveList.addAll(getKnightMoves(piece.row, piece.col, piece.white))
+                BISHOP -> moveList.addAll(getBishopMoves(piece.row, piece.col, piece.white))
+                QUEEN -> moveList.addAll(getQueenMoves(piece.row, piece.col, piece.white))
+                KING -> moveList.addAll(getKingMoves(piece.row, piece.col, piece.white))
+
+            }
+        }
+    }
+
+
+    fun getBishopMoves(row: Int, col: Int, white: Boolean): List<Move> {
+
+        val moves = ArrayList<Move>()
+
+        for (rowInc in arrayOf(1, -1)) {
+            for (colInc in arrayOf(1, -1)) {
+                var dRow = row + rowInc
+                var dCol = col + colInc
+
+                while (dRow in 0..7 && dCol in 0..7) {
+                    val piece = board[dRow][dCol]
+                    if (piece == null) {
+                        moves.add(Move(row, col, dRow, dCol))
+                        dRow += rowInc
+                        dCol += colInc
+                        continue
+                    } else {
+                        if (piece.white != white) {
+                            moves.add(Move(row, col, dRow, dCol))
+                        }
+                        break
+                    }
+                }
+            }
+        }
+
+        return moves
+    }
+
+    fun getQueenMoves(row: Int, col: Int, white: Boolean): List<Move> {
+
+        val moves = ArrayList<Move>()
+
+        moves.addAll(getBishopMoves(row,col,white))
+        moves.addAll(getRookMoves(row,col,white))
+
+        return moves
+    }
+
+    fun getKingMoves(row: Int, col: Int, white: Boolean): List<Move> {
+
+        val moves = ArrayList<Move>()
+
+        for (rowInc in -1..1) {
+            for (colInc in -1..1) {
+                var dRow = row + rowInc
+                var dCol = col + colInc
+
+                if (dRow in 0..7 && dCol in 0..7) {
+                    if (board[dRow][dCol] == null || board[dRow][dCol]!!.white != white) {
+                        moves.add(Move(row, col, dRow, dCol))
+                    }
+                }
+            }
+        }
+
+        return moves
+    }
+
+    fun getRookMoves(row: Int, col: Int, white: Boolean): List<Move> {
+
+        val moves = ArrayList<Move>()
+
+        for (inc in arrayOf(1, -1)) {
+            var dRow = row + inc
+            var dCol = col
+
+            while (dRow in 0..7 && dCol in 0..7) {
+                val piece = board[dRow][dCol]
+                if (piece == null) {
+                    moves.add(Move(row, col, dRow, dCol))
+                    dRow += inc
+                    continue
+                } else {
+                    if (piece.white != white) {
+                        moves.add(Move(row, col, dRow, dCol))
+                    }
+                    break
+                }
+            }
+
+            dRow = row
+            dCol = col + inc
+
+            while (dRow in 0..7 && dCol in 0..7) {
+                val piece = board[dRow][dCol]
+                if (piece == null) {
+                    moves.add(Move(row, col, dRow, dCol))
+                    dCol += inc
+                    continue
+                } else {
+                    if (piece.white != white) {
+                        moves.add(Move(row, col, dRow, dCol))
+                    }
+                    break
+                }
+            }
+        }
+        return moves
+
+    }
+
+
+    fun getKnightMoves(row: Int, col: Int, white: Boolean): List<Move> {
+
+        val moves = ArrayList<Move>()
+
+        val possibleMoves = arrayOf(
+                -1 to -2,
+                -1 to 2,
+                1 to -2,
+                1 to 2,
+                -2 to -1,
+                -2 to 1,
+                2 to -1,
+                2 to 1
+        )
+
+        for ((rowInc, colInc) in possibleMoves) {
+            val dRow = row + rowInc
+            val dCol = col + colInc
+
+            if (dRow in 0..7 && dCol in 0..7) {
+                if (board[dRow][dCol] == null || board[dRow][dCol]!!.white != white) {
+                    moves.add(Move(row, col, dRow, dCol))
+                }
+            }
+
+        }
+
+        return moves
+    }
+
+
+    fun getPawnMoves(row: Int, col: Int, white: Boolean): List<Move> {
+
+        val moves = ArrayList<Move>()
+
+        val oneRowAhead: Int
+        val twoRowsAhead: Int
+
+        if (white) {
+            oneRowAhead = row + 1
+            twoRowsAhead = row + 2
+        } else {
+            oneRowAhead = row - 1
+            twoRowsAhead = row - 2
+        }
+
+        if (board[oneRowAhead][col] == null) {
+            moves.add(Move(row, col, oneRowAhead, col))
+
+            if ((white && row == 1) || (!white && row == 6)) {
+                if (board[twoRowsAhead][col] == null) {
+                    moves.add(Move(row, col, twoRowsAhead, col))
+                }
+            }
+        }
+
+        val left = col - 1
+        val right = col + 1
+
+        if (left in 0..7) {
+            if (board[oneRowAhead][left]?.white == !white) {
+                moves.add(Move(row, col, oneRowAhead, left))
+            }
+        }
+
+        if (right in 0..7) {
+            if (board[oneRowAhead][right]?.white == !white) {
+                moves.add(Move(row, col, oneRowAhead, right))
+            }
+        }
+
+        return moves
+    }
+
+
+    fun doMove(move: Move): BoardState {
 
         val newBoard = board.copy()
 
@@ -37,27 +238,26 @@ class BoardState(
         val newBlackPieces = HashSet(blackPieces)
 
 
-        val pieceToMove = newBoard[bRow][bCol]
+        val pieceToMove = newBoard[move.bRow][move.bCol]
 
 
+        val capturedPiece = newBoard[move.aRow][move.aCol]
 
-        val capturedPiece = newBoard[aRow][aCol]
-
-        if(capturedPiece != null) {
+        if (capturedPiece != null) {
             assert(capturedPiece.white != pieceToMove!!.white)
-            if(capturedPiece.white) {
+            if (capturedPiece.white) {
                 newWhitePieces.remove(capturedPiece)
             } else {
                 newBlackPieces.remove(capturedPiece)
             }
         }
 
-        val pieceAfterMove = pieceToMove!!.copy(row = aRow, col = aCol)
-        newBoard[bRow][bCol] = null
-        newBoard[aRow][aCol] = pieceAfterMove
+        val pieceAfterMove = pieceToMove!!.copy(row = move.aRow, col = move.aCol)
+        newBoard[move.bRow][move.bCol] = null
+        newBoard[move.aRow][move.aCol] = pieceAfterMove
 
 
-        if(pieceToMove.white) {
+        if (pieceToMove.white) {
             newWhitePieces.remove(pieceToMove)
             newWhitePieces.add(pieceAfterMove)
         } else {
@@ -70,14 +270,12 @@ class BoardState(
     }
 
 
-
-
     private fun verifyBoard() {
-        for (row in 0..7){
+        for (row in 0..7) {
             for (col in 0..7) {
                 val piece = board[row][col]
                 if (piece != null) {
-                    if(piece.white) {
+                    if (piece.white) {
                         assert(whitePieces.contains(piece))
                     } else {
                         assert(blackPieces.contains(piece))
@@ -87,7 +285,7 @@ class BoardState(
         }
     }
 
-    private fun verifyPieces () {
+    private fun verifyPieces() {
         for (piece in whitePieces) {
             assert(piece.white)
             assert(board[piece.row][piece.col] === piece)
@@ -195,8 +393,6 @@ fun init(): BoardState {
             whiteToMove = true)
 
 }
-
-
 
 
 fun Array<Array<Piece?>>.copy() = map { it.clone() }.toTypedArray()
