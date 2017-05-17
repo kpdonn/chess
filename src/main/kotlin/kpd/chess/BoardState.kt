@@ -43,16 +43,25 @@ class BoardState(
 
         val piecesChecking = piecesWithKingCheck(whiteToMove)
 
+        val pinnedPieces = getPinnedPieces(whiteToMove)
+
         if (piecesChecking.size <= 1) {
             for (piece in pieces) {
+                var pieceMoves: List<Move>
                 when (piece.pieceType) {
-                    PAWN -> moveList.addAll(getPawnMoves(piece.row, piece.col, piece.white))
-                    ROOK -> moveList.addAll(getRookMoves(piece.row, piece.col, piece.white))
-                    KNIGHT -> moveList.addAll(getKnightMoves(piece.row, piece.col, piece.white))
-                    BISHOP -> moveList.addAll(getBishopMoves(piece.row, piece.col, piece.white))
-                    QUEEN -> moveList.addAll(getQueenMoves(piece.row, piece.col, piece.white))
-                    KING -> moveList.addAll(getKingMoves(piece.row, piece.col, piece.white))
+                    PAWN -> pieceMoves = getPawnMoves(piece.row, piece.col, piece.white)
+                    ROOK -> pieceMoves = getRookMoves(piece.row, piece.col, piece.white)
+                    KNIGHT -> pieceMoves = getKnightMoves(piece.row, piece.col, piece.white)
+                    BISHOP -> pieceMoves = getBishopMoves(piece.row, piece.col, piece.white)
+                    QUEEN -> pieceMoves = getQueenMoves(piece.row, piece.col, piece.white)
+                    KING -> pieceMoves = getKingMoves(piece.row, piece.col, piece.white)
                 }
+
+                if (pinnedPieces.containsKey(piece)){
+                    pieceMoves = filterMovesForCheck(pieceMoves, pinnedPieces[piece])
+                }
+
+                moveList.addAll(pieceMoves)
             }
 
             if (piecesChecking.size == 1) {
@@ -70,6 +79,47 @@ class BoardState(
 
 
         return moveList
+    }
+
+    /**
+     * Returns map of pinned piece to piece doing the pinning
+     */
+    fun getPinnedPieces(attackingWhiteKing: Boolean): Map<Piece, Piece> {
+        val pieces: Set<Piece>
+        val attackedKing: Piece
+        if (attackingWhiteKing) {
+            pieces = blackPieces
+            attackedKing = whiteKing
+        } else {
+            pieces = whitePieces
+            attackedKing = blackKing
+        }
+
+        val pinnedPieces = HashMap<Piece, Piece>()
+
+        for(pinningPiece in pieces) {
+            when(pinningPiece.pieceType) {
+                KING, KNIGHT, PAWN -> {}
+                BISHOP, QUEEN -> {
+                    if (onDiagonalLineWithSpace(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)) {
+                        val piecesBetween = piecesBetweenDiagonalLine(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)
+                        if(pieces.size == 1 && piecesBetween[0].white == attackedKing.white){
+                            pinnedPieces.put(piecesBetween[0], pinningPiece)
+                        }
+                    }
+                }
+                ROOK, QUEEN -> {
+                    if (onStraightLineWithSpace(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)) {
+                        val piecesBetween = piecesBetweenStraightLine(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)
+                        if(pieces.size == 1 && piecesBetween[0].white == attackedKing.white){
+                            pinnedPieces.put(piecesBetween[0], pinningPiece)
+                        }
+                    }
+                }
+            }
+        }
+
+        return pinnedPieces
     }
 
     fun piecesWithKingCheck(whiteKing: Boolean): List<Piece> {
@@ -276,7 +326,8 @@ class BoardState(
                 var dCol = col + colInc
 
                 if (dRow in 0..7 && dCol in 0..7) {
-                    if (board[dRow][dCol] == null || board[dRow][dCol]!!.white != white) {
+                    if ((board[dRow][dCol] == null || board[dRow][dCol]!!.white != white) &&
+                            piecesWithDirectAttacks(dRow, dCol, !white).isEmpty()) {
                         moves.add(Move(row, col, dRow, dCol))
                     }
                 }
@@ -324,8 +375,12 @@ class BoardState(
         return false
     }
 
-    fun doesBlockAttack(rowToTest: Int, colToTest: Int, attackingRow: Int, attackingCol: Int, attackedRow: Int, attackedCol: Int): Boolean {
+    fun doesBlockOrCaptureAttack(rowToTest: Int, colToTest: Int, attackingRow: Int, attackingCol: Int, attackedRow: Int, attackedCol: Int): Boolean {
         val attackingPiece = board[attackingRow][attackingCol]!!
+
+        if(rowToTest == attackingRow && colToTest == attackingCol) {
+            return true
+        }
 
         when(attackingPiece.pieceType) {
             KING, PAWN, KNIGHT -> return false
@@ -342,8 +397,8 @@ class BoardState(
         }
     }
 
-    fun doesBlockAttack(move: Move, attackingPiece: Piece, attackedPiece: Piece): Boolean {
-        return doesBlockAttack(move.aRow, move.aCol, attackingPiece.row, attackingPiece.col, attackedPiece.row, attackedPiece.col)
+    fun doesBlockOrCaptureAttack(move: Move, attackingPiece: Piece, attackedPiece: Piece): Boolean {
+        return doesBlockOrCaptureAttack(move.aRow, move.aCol, attackingPiece.row, attackingPiece.col, attackedPiece.row, attackedPiece.col)
     }
 
     fun getRookMoves(row: Int, col: Int, white: Boolean): List<Move> {
@@ -473,10 +528,7 @@ class BoardState(
                 king = whiteKing
             }
 
-            val filteredMoves = moves.filter {
-                (it.aRow == kingInCheckFrom.row && it.aCol == kingInCheckFrom.col) ||
-                        doesBlockAttack(it, kingInCheckFrom, king)
-            }
+            val filteredMoves = moves.filter { doesBlockOrCaptureAttack(it, kingInCheckFrom, king) }
 
             return filteredMoves
         }
@@ -650,6 +702,8 @@ fun init(): BoardState {
     return BoardState(board = board,
             whitePieces = whitePieces,
             blackPieces = blackPieces,
+            whiteKing = board[0][4]!!,
+            blackKing = board[7][4]!!,
             whiteCastleKing = true,
             whiteCastleQueen = true,
             blackCastleKing = true,
