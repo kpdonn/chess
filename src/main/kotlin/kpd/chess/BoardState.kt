@@ -197,9 +197,11 @@ class BoardState(
             if (rowOffset != 0) {
                 colOffset += colInc
 
-                val maybePiece =  board[row2 + rowOffset][col2 + colOffset]
-                if(maybePiece != null) {
-                    piecesBetween.add(maybePiece)
+                if (row2 + rowOffset in 0..7 && col2 + colOffset in 0..7) {
+                    val maybePiece = board[row2 + rowOffset][col2 + colOffset]
+                    if (maybePiece != null) {
+                        piecesBetween.add(maybePiece)
+                    }
                 }
 
             }
@@ -233,12 +235,12 @@ class BoardState(
                     }
                 }
                 ROOK, QUEEN -> {
-                    if (piecesBetweenStraightLine(piece.row, piece.col, row, col).isEmpty()) {
+                    if (onStraightLineWithSpace(piece.row, piece.col, row, col) && piecesBetweenStraightLine(piece.row, piece.col, row, col).isEmpty()) {
                         piecesWithAttack.add(piece)
                     }
                 }
                 BISHOP, QUEEN -> {
-                    if (piecesBetweenDiagonalLine(piece.row, piece.col, row, col).isEmpty()) {
+                    if (onDiagonalLineWithSpace(piece.row, piece.col, row, col) && piecesBetweenDiagonalLine(piece.row, piece.col, row, col).isEmpty()) {
                         piecesWithAttack.add(piece)
                     }
                 }
@@ -565,24 +567,48 @@ class BoardState(
 
         var whiteKing = whiteKing
         var blackKing = blackKing
+        var newWhiteCastleKing = whiteCastleKing
+        var newWhiteCastleQueen = whiteCastleQueen
+        var newBlackCastleKing = blackCastleKing
+        var newBlackCastleQueen = blackCastleQueen
 
         if (pieceAfterMove.pieceType == KING) {
             if (pieceAfterMove.white) {
                 whiteKing = pieceAfterMove
+                newWhiteCastleKing = false
+                newWhiteCastleQueen = false
             } else {
                 blackKing = pieceAfterMove
+                newBlackCastleKing = false
+                newBlackCastleQueen = false
             }
         }
+
 
         if (pieceToMove.white) {
             newWhitePieces.remove(pieceToMove)
             newWhitePieces.add(pieceAfterMove)
+
+            if(whiteCastleQueen && pieceToMove.pieceType == ROOK && pieceToMove.row == 0 && pieceToMove.col == 0) {
+                newWhiteCastleQueen = false
+            }
+            if(whiteCastleKing && pieceToMove.pieceType == ROOK && pieceToMove.row == 0 && pieceToMove.col == 7) {
+                newWhiteCastleKing = false
+            }
+
         } else {
             newBlackPieces.remove(pieceToMove)
             newBlackPieces.add(pieceAfterMove)
+
+            if(blackCastleQueen && pieceToMove.pieceType == ROOK && pieceToMove.row == 7 && pieceToMove.col == 0) {
+                newBlackCastleQueen = false
+            }
+            if(blackCastleKing && pieceToMove.pieceType == ROOK && pieceToMove.row == 7 && pieceToMove.col == 7) {
+                newBlackCastleKing = false
+            }
         }
 
-        return BoardState(newBoard, newWhitePieces, newBlackPieces,whiteKing, blackKing, whiteCastleKing, whiteCastleQueen, blackCastleKing, blackCastleQueen, enPassantColumn, !whiteToMove)
+        return BoardState(newBoard, newWhitePieces, newBlackPieces,whiteKing, blackKing, newWhiteCastleKing, newWhiteCastleQueen, newBlackCastleKing, newBlackCastleQueen, enPassantColumn, !whiteToMove)
 
     }
 
@@ -609,7 +635,7 @@ class BoardState(
         }
 
         for (piece in blackPieces) {
-            assert(piece.white)
+            assert(!piece.white)
             assert(board[piece.row][piece.col] === piece)
         }
     }
