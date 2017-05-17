@@ -1,5 +1,6 @@
 package kpd.chess
 
+import com.sun.org.apache.xpath.internal.operations.Bool
 import kpd.chess.PieceType.*
 
 
@@ -39,7 +40,7 @@ class BoardState(
         val moveList = ArrayList<Move>()
 
         for (piece in pieces) {
-            when(piece.pieceType) {
+            when (piece.pieceType) {
                 PAWN -> moveList.addAll(getPawnMoves(piece.row, piece.col, piece.white))
                 ROOK -> moveList.addAll(getRookMoves(piece.row, piece.col, piece.white))
                 KNIGHT -> moveList.addAll(getKnightMoves(piece.row, piece.col, piece.white))
@@ -50,6 +51,148 @@ class BoardState(
         }
 
         return moveList
+    }
+
+    fun numberOfKingChecks(whiteKing: Boolean): Int {
+        val pieces: Set<Piece>
+        if (whiteKing) {
+            pieces = whitePieces
+        } else {
+            pieces = blackPieces
+        }
+
+        for (piece in pieces) {
+            if (piece.pieceType == KING) {
+                return numberOfDirectAttacks(piece.row, piece.col, !whiteKing)
+            }
+        }
+
+        throw Exception("No King found")
+    }
+
+    fun numberPiecesBetweenStraightLine(row1: Int, col1: Int, row2: Int, col2: Int): Int {
+        assert(onStraightLineWithSpace(row1, col1, row2, col2))
+
+
+        val rowDiff = row1 - row2
+        val colDiff = col1 - col2
+
+        var numberPieces = 0
+
+        if (rowDiff == 0) {
+            for (colOffset in 0 until colDiff) {
+                if (colOffset != 0 && board[row2][col2 + colOffset] != null) {
+                    numberPieces++
+                }
+            }
+        }
+
+        if (colDiff == 0) {
+            for (rowOffset in 0 until rowDiff) {
+                if (rowOffset != 0 && board[row2 + rowOffset][col2] != null) {
+                    numberPieces++
+                }
+            }
+        }
+
+        return numberPieces
+    }
+
+    fun numberPiecesBetweenDiagonalLine(row1: Int, col1: Int, row2: Int, col2: Int): Int {
+        assert(onDiagonalLineWithSpace(row1, col1, row2, col2))
+
+
+        val rowDiff = row1 - row2
+        val colDiff = col1 - col2
+
+        var numberPieces = 0
+
+        val colInc: Int
+        if (Math.abs(colDiff) == colDiff) {
+            colInc = 1
+        } else {
+            colInc = -1
+        }
+
+        var colOffset = 0
+
+        for (rowOffset in 0 until rowDiff) {
+            if (rowOffset != 0) {
+                colOffset += colInc
+                if (board[row2 + rowOffset][col2 + colOffset] != null) {
+                    numberPieces++
+                }
+            }
+        }
+
+        return numberPieces
+    }
+
+    fun numberOfDirectAttacks(row: Int, col: Int, attackFromWhite: Boolean): Int {
+        val pieces: Set<Piece>
+        if (attackFromWhite) {
+            pieces = whitePieces
+        } else {
+            pieces = blackPieces
+        }
+
+        var numberAttacks = 0
+
+
+        for (piece in pieces) {
+            val rowDiff = piece.row - row
+            val colDiff = piece.col - col
+
+            assert(!(rowDiff == 0 && colDiff == 0))
+
+            when (piece.pieceType) {
+                KING -> {
+                    if (Math.abs(rowDiff) <= 1 && Math.abs(colDiff) <= 1) {
+                        numberAttacks++
+                    }
+                }
+                ROOK, QUEEN -> {
+                    if (numberPiecesBetweenStraightLine(piece.row, piece.col, row, col) == 0) {
+                        numberAttacks++
+                    }
+                }
+                BISHOP, QUEEN -> {
+                    if (numberPiecesBetweenDiagonalLine(piece.row, piece.col, row, col) == 0) {
+                        numberAttacks++
+                    }
+                }
+                KNIGHT -> {
+                    if ((Math.abs(rowDiff) == 2 && Math.abs(colDiff) == 1) ||
+                            (Math.abs(colDiff) == 2 && Math.abs(rowDiff) == 1)) {
+                        numberAttacks++
+                    }
+                }
+                PAWN -> {
+                    if (colDiff == 1 || colDiff == -1) {
+                        if ((attackFromWhite && rowDiff == -1) || (!attackFromWhite && rowDiff == 1)) {
+                            numberAttacks++
+                        }
+                    }
+
+                    // TODO: En passant
+                }
+            }
+        }
+        return numberAttacks
+    }
+
+    fun onStraightLineWithSpace(row1: Int, col1: Int, row2: Int, col2: Int): Boolean {
+
+        return row1 == row2 || col1 == col2
+
+
+    }
+
+    fun onDiagonalLineWithSpace(row1: Int, col1: Int, row2: Int, col2: Int): Boolean {
+        val rowDiff = row1 - row2
+        val colDiff = col1 - col2
+
+        return Math.abs(rowDiff) == Math.abs(colDiff)
     }
 
 
@@ -86,8 +229,8 @@ class BoardState(
 
         val moves = ArrayList<Move>()
 
-        moves.addAll(getBishopMoves(row,col,white))
-        moves.addAll(getRookMoves(row,col,white))
+        moves.addAll(getBishopMoves(row, col, white))
+        moves.addAll(getRookMoves(row, col, white))
 
         return moves
     }
