@@ -100,21 +100,35 @@ class BoardState(
         for(pinningPiece in pieces) {
             when(pinningPiece.pieceType) {
                 KING, KNIGHT, PAWN -> {}
-                BISHOP, QUEEN -> {
+                BISHOP -> {
                     if (onDiagonalLineWithSpace(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)) {
                         val piecesBetween = piecesBetweenDiagonalLine(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)
-                        if(pieces.size == 1 && piecesBetween[0].white == attackedKing.white){
+                        if(piecesBetween.size == 1 && piecesBetween[0].white == attackedKing.white){
                             pinnedPieces.put(piecesBetween[0], pinningPiece)
                         }
                     }
                 }
-                ROOK, QUEEN -> {
+                ROOK -> {
                     if (onStraightLineWithSpace(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)) {
                         val piecesBetween = piecesBetweenStraightLine(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)
-                        if(pieces.size == 1 && piecesBetween[0].white == attackedKing.white){
+                        if(piecesBetween.size == 1 && piecesBetween[0].white == attackedKing.white){
                             pinnedPieces.put(piecesBetween[0], pinningPiece)
                         }
                     }
+                }
+                QUEEN -> {
+                    if (onDiagonalLineWithSpace(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)) {
+                        val piecesBetween = piecesBetweenDiagonalLine(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)
+                        if(piecesBetween.size == 1 && piecesBetween[0].white == attackedKing.white){
+                            pinnedPieces.put(piecesBetween[0], pinningPiece)
+                        }
+                    } else if (onStraightLineWithSpace(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)) {
+                        val piecesBetween = piecesBetweenStraightLine(attackedKing.row, attackedKing.col, pinningPiece.row, pinningPiece.col)
+                        if(piecesBetween.size == 1 && piecesBetween[0].white == attackedKing.white){
+                            pinnedPieces.put(piecesBetween[0], pinningPiece)
+                        }
+                    }
+
                 }
             }
         }
@@ -234,13 +248,20 @@ class BoardState(
                         piecesWithAttack.add(piece)
                     }
                 }
-                ROOK, QUEEN -> {
+                ROOK -> {
                     if (onStraightLineWithSpace(piece.row, piece.col, row, col) && piecesBetweenStraightLine(piece.row, piece.col, row, col).isEmpty()) {
                         piecesWithAttack.add(piece)
                     }
                 }
-                BISHOP, QUEEN -> {
+                BISHOP -> {
                     if (onDiagonalLineWithSpace(piece.row, piece.col, row, col) && piecesBetweenDiagonalLine(piece.row, piece.col, row, col).isEmpty()) {
+                        piecesWithAttack.add(piece)
+                    }
+                }
+                QUEEN -> {
+                    if (onStraightLineWithSpace(piece.row, piece.col, row, col) && piecesBetweenStraightLine(piece.row, piece.col, row, col).isEmpty()) {
+                        piecesWithAttack.add(piece)
+                    } else if (onDiagonalLineWithSpace(piece.row, piece.col, row, col) && piecesBetweenDiagonalLine(piece.row, piece.col, row, col).isEmpty()) {
                         piecesWithAttack.add(piece)
                     }
                 }
@@ -327,10 +348,14 @@ class BoardState(
                 var dRow = row + rowInc
                 var dCol = col + colInc
 
+
+
                 if (dRow in 0..7 && dCol in 0..7) {
-                    if ((board[dRow][dCol] == null || board[dRow][dCol]!!.white != white) &&
-                            piecesWithDirectAttacks(dRow, dCol, !white).isEmpty()) {
-                        moves.add(Move(row, col, dRow, dCol))
+                    if (board[dRow][dCol] == null || board[dRow][dCol]!!.white != white) {
+                        val piecesWithDirectAttack = piecesWithDirectAttacks(dRow, dCol, !white)
+                        if (piecesWithDirectAttack.isEmpty()) {
+                            moves.add(Move(row, col, dRow, dCol))
+                        }
                     }
                 }
             }
@@ -607,6 +632,20 @@ class BoardState(
                 newBlackCastleKing = false
             }
         }
+
+        if(whiteCastleQueen && move.aRow == 0 && move.aCol == 0) {
+            newWhiteCastleQueen = false
+        }
+        if(whiteCastleKing && move.aRow == 0 && move.aCol == 7) {
+            newWhiteCastleKing = false
+        }
+        if(blackCastleQueen && move.aRow == 7 && move.aCol == 0) {
+            newBlackCastleQueen = false
+        }
+        if(blackCastleKing && move.aRow == 7 && move.aCol == 7) {
+            newBlackCastleKing = false
+        }
+
 
         return BoardState(newBoard, newWhitePieces, newBlackPieces,whiteKing, blackKing, newWhiteCastleKing, newWhiteCastleQueen, newBlackCastleKing, newBlackCastleQueen, enPassantColumn, !whiteToMove)
 
