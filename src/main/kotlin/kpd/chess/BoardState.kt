@@ -11,6 +11,8 @@ class BoardState(
         val whitePieces: Set<Piece>,
         val blackPieces: Set<Piece>,
 
+        val whiteKing: Piece,
+        val blackKing: Piece,
 
         val whiteCastleKing: Boolean,
         val whiteCastleQueen: Boolean,
@@ -37,23 +39,40 @@ class BoardState(
             pieces = blackPieces
         }
 
-        val moveList = ArrayList<Move>()
+        var moveList = ArrayList<Move>()
 
-        for (piece in pieces) {
-            when (piece.pieceType) {
-                PAWN -> moveList.addAll(getPawnMoves(piece.row, piece.col, piece.white))
-                ROOK -> moveList.addAll(getRookMoves(piece.row, piece.col, piece.white))
-                KNIGHT -> moveList.addAll(getKnightMoves(piece.row, piece.col, piece.white))
-                BISHOP -> moveList.addAll(getBishopMoves(piece.row, piece.col, piece.white))
-                QUEEN -> moveList.addAll(getQueenMoves(piece.row, piece.col, piece.white))
-                KING -> moveList.addAll(getKingMoves(piece.row, piece.col, piece.white))
+        val piecesChecking = piecesWithKingCheck(whiteToMove)
+
+        if (piecesChecking.size <= 1) {
+            for (piece in pieces) {
+                when (piece.pieceType) {
+                    PAWN -> moveList.addAll(getPawnMoves(piece.row, piece.col, piece.white))
+                    ROOK -> moveList.addAll(getRookMoves(piece.row, piece.col, piece.white))
+                    KNIGHT -> moveList.addAll(getKnightMoves(piece.row, piece.col, piece.white))
+                    BISHOP -> moveList.addAll(getBishopMoves(piece.row, piece.col, piece.white))
+                    QUEEN -> moveList.addAll(getQueenMoves(piece.row, piece.col, piece.white))
+                    KING -> moveList.addAll(getKingMoves(piece.row, piece.col, piece.white))
+                }
+            }
+
+            if (piecesChecking.size == 1) {
+                moveList = ArrayList(filterMovesForCheck(moveList, piecesChecking[0]))
+            }
+        } else {
+            for (piece in pieces) {
+                when (piece.pieceType) {
+                    KING -> moveList.addAll(getKingMoves(piece.row, piece.col, piece.white))
+                    else -> {}
+                }
             }
         }
+
+
 
         return moveList
     }
 
-    fun numberOfKingChecks(whiteKing: Boolean): Int {
+    fun piecesWithKingCheck(whiteKing: Boolean): List<Piece> {
         val pieces: Set<Piece>
         if (whiteKing) {
             pieces = whitePieces
@@ -63,49 +82,57 @@ class BoardState(
 
         for (piece in pieces) {
             if (piece.pieceType == KING) {
-                return numberOfDirectAttacks(piece.row, piece.col, !whiteKing)
+                return piecesWithDirectAttacks(piece.row, piece.col, !whiteKing)
             }
         }
 
         throw Exception("No King found")
     }
 
-    fun numberPiecesBetweenStraightLine(row1: Int, col1: Int, row2: Int, col2: Int): Int {
+    fun piecesBetweenStraightLine(row1: Int, col1: Int, row2: Int, col2: Int): List<Piece> {
         assert(onStraightLineWithSpace(row1, col1, row2, col2))
 
 
         val rowDiff = row1 - row2
         val colDiff = col1 - col2
 
-        var numberPieces = 0
+
+        val piecesBetween = ArrayList<Piece>()
 
         if (rowDiff == 0) {
             for (colOffset in 0 until colDiff) {
-                if (colOffset != 0 && board[row2][col2 + colOffset] != null) {
-                    numberPieces++
+                if (colOffset != 0) {
+                    val maybePiece = board[row2][col2 + colOffset]
+                    if(maybePiece != null) {
+                        piecesBetween.add(maybePiece)
+                    }
+
                 }
             }
         }
 
         if (colDiff == 0) {
             for (rowOffset in 0 until rowDiff) {
-                if (rowOffset != 0 && board[row2 + rowOffset][col2] != null) {
-                    numberPieces++
+                if (rowOffset != 0) {
+                    val maybePiece =  board[row2 + rowOffset][col2]
+                    if(maybePiece != null) {
+                        piecesBetween.add(maybePiece)
+                    }
                 }
             }
         }
 
-        return numberPieces
+        return piecesBetween
     }
 
-    fun numberPiecesBetweenDiagonalLine(row1: Int, col1: Int, row2: Int, col2: Int): Int {
+    fun piecesBetweenDiagonalLine(row1: Int, col1: Int, row2: Int, col2: Int): List<Piece> {
         assert(onDiagonalLineWithSpace(row1, col1, row2, col2))
 
 
         val rowDiff = row1 - row2
         val colDiff = col1 - col2
 
-        var numberPieces = 0
+        val piecesBetween = ArrayList<Piece>()
 
         val colInc: Int
         if (Math.abs(colDiff) == colDiff) {
@@ -119,16 +146,19 @@ class BoardState(
         for (rowOffset in 0 until rowDiff) {
             if (rowOffset != 0) {
                 colOffset += colInc
-                if (board[row2 + rowOffset][col2 + colOffset] != null) {
-                    numberPieces++
+
+                val maybePiece =  board[row2 + rowOffset][col2 + colOffset]
+                if(maybePiece != null) {
+                    piecesBetween.add(maybePiece)
                 }
+
             }
         }
 
-        return numberPieces
+        return piecesBetween
     }
 
-    fun numberOfDirectAttacks(row: Int, col: Int, attackFromWhite: Boolean): Int {
+    fun piecesWithDirectAttacks(row: Int, col: Int, attackFromWhite: Boolean): List<Piece> {
         val pieces: Set<Piece>
         if (attackFromWhite) {
             pieces = whitePieces
@@ -136,7 +166,8 @@ class BoardState(
             pieces = blackPieces
         }
 
-        var numberAttacks = 0
+
+        val piecesWithAttack = ArrayList<Piece>()
 
 
         for (piece in pieces) {
@@ -148,29 +179,29 @@ class BoardState(
             when (piece.pieceType) {
                 KING -> {
                     if (Math.abs(rowDiff) <= 1 && Math.abs(colDiff) <= 1) {
-                        numberAttacks++
+                        piecesWithAttack.add(piece)
                     }
                 }
                 ROOK, QUEEN -> {
-                    if (numberPiecesBetweenStraightLine(piece.row, piece.col, row, col) == 0) {
-                        numberAttacks++
+                    if (piecesBetweenStraightLine(piece.row, piece.col, row, col).isEmpty()) {
+                        piecesWithAttack.add(piece)
                     }
                 }
                 BISHOP, QUEEN -> {
-                    if (numberPiecesBetweenDiagonalLine(piece.row, piece.col, row, col) == 0) {
-                        numberAttacks++
+                    if (piecesBetweenDiagonalLine(piece.row, piece.col, row, col).isEmpty()) {
+                        piecesWithAttack.add(piece)
                     }
                 }
                 KNIGHT -> {
                     if ((Math.abs(rowDiff) == 2 && Math.abs(colDiff) == 1) ||
                             (Math.abs(colDiff) == 2 && Math.abs(rowDiff) == 1)) {
-                        numberAttacks++
+                        piecesWithAttack.add(piece)
                     }
                 }
                 PAWN -> {
                     if (colDiff == 1 || colDiff == -1) {
                         if ((attackFromWhite && rowDiff == -1) || (!attackFromWhite && rowDiff == 1)) {
-                            numberAttacks++
+                            piecesWithAttack.add(piece)
                         }
                     }
 
@@ -178,7 +209,7 @@ class BoardState(
                 }
             }
         }
-        return numberAttacks
+        return piecesWithAttack
     }
 
     fun onStraightLineWithSpace(row1: Int, col1: Int, row2: Int, col2: Int): Boolean {
@@ -253,6 +284,66 @@ class BoardState(
         }
 
         return moves
+    }
+
+    fun isBetweenStraightLine(rowToTest: Int, colToTest: Int, row1: Int, col1: Int, row2: Int, col2: Int): Boolean {
+        val endpointsRowDiff = row1 - row2
+        val endPointsColDiff = col1 - col2
+
+        val testRowDiff = row1 - rowToTest
+        val testColDiff = col1 - colToTest
+
+        if (testColDiff != 0 && testRowDiff != 0) {
+            return false
+        }
+
+        if(testColDiff == 0 && testRowDiff in 0..endpointsRowDiff) {
+            return true
+        } else if (testRowDiff == 0 && testColDiff in 0..endPointsColDiff) {
+            return true
+        }
+
+        return false
+    }
+
+    fun isBetweenDiagonalLine(rowToTest: Int, colToTest: Int, row1: Int, col1: Int, row2: Int, col2: Int): Boolean {
+        val endpointsRowDiff = row1 - row2
+        val endPointsColDiff = col1 - col2
+
+        val testRowDiff = row1 - rowToTest
+        val testColDiff = col1 - colToTest
+
+        if (Math.abs(testRowDiff) != Math.abs(testColDiff)) {
+            return false
+        }
+
+        if(testRowDiff in 0..endpointsRowDiff && testColDiff in 0..endPointsColDiff) {
+            return true
+        }
+
+        return false
+    }
+
+    fun doesBlockAttack(rowToTest: Int, colToTest: Int, attackingRow: Int, attackingCol: Int, attackedRow: Int, attackedCol: Int): Boolean {
+        val attackingPiece = board[attackingRow][attackingCol]!!
+
+        when(attackingPiece.pieceType) {
+            KING, PAWN, KNIGHT -> return false
+            ROOK -> return isBetweenStraightLine(rowToTest, colToTest, attackingRow, attackingCol, attackedRow, attackedCol)
+            BISHOP -> return isBetweenDiagonalLine(rowToTest, colToTest, attackingRow, attackingCol, attackedRow, attackedCol)
+            QUEEN -> {
+                if(onStraightLineWithSpace(attackingRow, attackingCol, attackedRow, attackedCol)) {
+                    return isBetweenStraightLine(rowToTest, colToTest, attackingRow, attackingCol, attackedRow, attackedCol)
+                } else {
+                    return isBetweenDiagonalLine(rowToTest, colToTest, attackingRow, attackingCol, attackedRow, attackedCol)
+                }
+            }
+
+        }
+    }
+
+    fun doesBlockAttack(move: Move, attackingPiece: Piece, attackedPiece: Piece): Boolean {
+        return doesBlockAttack(move.aRow, move.aCol, attackingPiece.row, attackingPiece.col, attackedPiece.row, attackedPiece.col)
     }
 
     fun getRookMoves(row: Int, col: Int, white: Boolean): List<Move> {
@@ -373,6 +464,26 @@ class BoardState(
         return moves
     }
 
+    fun filterMovesForCheck(moves: List<Move>, kingInCheckFrom: Piece?): List<Move> {
+        if (kingInCheckFrom != null) {
+            val king: Piece
+            if (kingInCheckFrom.white) {
+                king = blackKing
+            } else {
+                king = whiteKing
+            }
+
+            val filteredMoves = moves.filter {
+                (it.aRow == kingInCheckFrom.row && it.aCol == kingInCheckFrom.col) ||
+                        doesBlockAttack(it, kingInCheckFrom, king)
+            }
+
+            return filteredMoves
+        }
+
+        return moves
+    }
+
 
     fun doMove(move: Move): BoardState {
 
@@ -400,6 +511,16 @@ class BoardState(
         newBoard[move.bRow][move.bCol] = null
         newBoard[move.aRow][move.aCol] = pieceAfterMove
 
+        var whiteKing = whiteKing
+        var blackKing = blackKing
+
+        if (pieceAfterMove.pieceType == KING) {
+            if (pieceAfterMove.white) {
+                whiteKing = pieceAfterMove
+            } else {
+                blackKing = pieceAfterMove
+            }
+        }
 
         if (pieceToMove.white) {
             newWhitePieces.remove(pieceToMove)
@@ -409,7 +530,7 @@ class BoardState(
             newBlackPieces.add(pieceAfterMove)
         }
 
-        return BoardState(newBoard, newWhitePieces, newBlackPieces, whiteCastleKing, whiteCastleQueen, blackCastleKing, blackCastleQueen, enPassantColumn, !whiteToMove)
+        return BoardState(newBoard, newWhitePieces, newBlackPieces,whiteKing, blackKing, whiteCastleKing, whiteCastleQueen, blackCastleKing, blackCastleQueen, enPassantColumn, !whiteToMove)
 
     }
 
