@@ -46,9 +46,10 @@ class BoardState(
                 BISHOP -> moveList.addAll(getBishopMoves(piece.row, piece.col, piece.white))
                 QUEEN -> moveList.addAll(getQueenMoves(piece.row, piece.col, piece.white))
                 KING -> moveList.addAll(getKingMoves(piece.row, piece.col, piece.white))
-
             }
         }
+
+        return moveList
     }
 
 

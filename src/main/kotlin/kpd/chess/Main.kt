@@ -6,27 +6,29 @@ package kpd.chess
 fun main(args : Array<String>) {
     val board = init()
 
-    println("ORIGINAL BOARD BEFORE")
-    board.board.forEach { it.forEach { println(it) } }
+    val number = perft(board, 4)
 
-    println(board.whitePieces)
-    println(board.blackPieces)
-
-    println("NEW BOARD AFTER")
-
-    val newBoard = board.move(1, 3, 3, 3)
-
-    newBoard.board.forEach { it.forEach { println(it) } }
-
-    println(newBoard.whitePieces)
-    println(newBoard.blackPieces)
+    println(number)
 
 
-    println("ORIGINAL BOARD AFTER")
-
-    board.board.forEach { it.forEach { println(it) } }
-
-    println(board.whitePieces)
-    println(board.blackPieces)
 }
 
+
+
+fun perft(board: BoardState, depth: Int): Int {
+    if(depth == 0) {
+        return 1
+    }
+
+    val moveList = board.getPossibleMoves()
+
+    var total = 0
+
+    for (move in moveList) {
+        val newBoard = board.doMove(move)
+
+        total += perft(newBoard, depth - 1)
+    }
+
+    return total
+}
